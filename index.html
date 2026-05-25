@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Student Manager</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+  <div class="bg-blobs">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+  </div>
+
+  <header>
+    <div class="logo">🎓 StudentAPI</div>
+    <nav>
+      <a href="index.html" class="active">All Students</a>
+      <a href="add.html" class="btn-nav">+ Add Student</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="page-title">
+      <h1>Student <span>Directory</span></h1>
+      <p>Manage all students via Student API #12</p>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="Search by name or email..." oninput="filterStudents()" />
+      <span id="countBadge" class="count-badge">0 students</span>
+    </div>
+
+    <div id="loadingState" class="state-box">
+      <div class="spinner"></div>
+      <p>Loading students...</p>
+    </div>
+
+    <div id="errorState" class="state-box hidden">
+      <div class="state-icon">⚠️</div>
+      <p id="errorMsg">Something went wrong.</p>
+      <button onclick="loadStudents()">Retry</button>
+    </div>
+
+    <div id="emptyState" class="state-box hidden">
+      <div class="state-icon">📭</div>
+      <p>No students found.</p>
+      <a href="add.html" class="btn-primary">Add First Student</a>
+    </div>
+
+    <div id="studentGrid" class="student-grid hidden"></div>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    let allStudents = [];
+
+    async function loadStudents() {
+      showState('loading');
+      try {
+        allStudents = await StudentAPI.getAll();
+        renderStudents(allStudents);
+      } catch (e) {
+        document.getElementById('errorMsg').textContent = e.message;
+        showState('error');
+      }
+    }
+
+    function renderStudents(list) {
+      const grid = document.getElementById('studentGrid');
+      document.getElementById('countBadge').textContent = `${list.length} student${list.length !== 1 ? 's' : ''}`;
+      if (!list.length) { showState('empty'); return; }
+      grid.innerHTML = list.map(s => `
+        <div class="student-card" style="animation-delay:${Math.random()*0.3}s">
+          <div class="card-avatar">${getInitials(s.name || s.firstName)}</div>
+          <div class="card-info">
+            <h3>${s.name || (s.firstName + ' ' + s.lastName)}</h3>
+            <p class="card-email">✉ ${s.email || '—'}</p>
+            <p class="card-meta">📚 ${s.course || s.department || '—'} &nbsp;|&nbsp; 🆔 ${s.id}</p>
+          </div>
+          <div class="card-actions">
+            <a href="edit.html?id=${s.id}" class="btn-edit">Edit</a>
+            <button onclick="deleteStudent(${s.id}, this)" class="btn-delete">Delete</button>
+          </div>
+        </div>
+      `).join('');
+      showState('grid');
+    }
+
+    function filterStudents() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = allStudents.filter(s => {
+        const name = (s.name || (s.firstName + ' ' + s.lastName)).toLowerCase();
+        const email = (s.email || '').toLowerCase();
+        return name.includes(q) || email.includes(q);
+      });
+      renderStudents(filtered);
+    }
+
+    async function deleteStudent(id, btn) {
+      if (!confirm('Delete this student? This cannot be undone.')) return;
+      btn.textContent = '...';
+      btn.disabled = true;
+      try {
+        await StudentAPI.delete(id);
+        allStudents = allStudents.filter(s => s.id !== id);
+        renderStudents(allStudents);
+        showToast('Student deleted!', 'success');
+      } catch(e) {
+        showToast('Delete failed: ' + e.message, 'error');
+        btn.textContent = 'Delete';
+        btn.disabled = false;
+      }
+    }
+
+    function getInitials(name = '') {
+      return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2) || '?';
+    }
+
+    function showState(state) {
+      document.getElementById('loadingState').classList.toggle('hidden', state !== 'loading');
+      document.getElementById('errorState').classList.toggle('hidden', state !== 'error');
+      document.getElementById('emptyState').classList.toggle('hidden', state !== 'empty');
+      document.getElementById('studentGrid').classList.toggle('hidden', state !== 'grid');
+    }
+
+    loadStudents();
+  </script>
+</body>
+</html>

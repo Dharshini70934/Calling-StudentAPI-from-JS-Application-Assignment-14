@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Edit Student | StudentAPI</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+  <div class="bg-blobs">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+  </div>
+
+  <header>
+    <div class="logo">🎓 StudentAPI</div>
+    <nav>
+      <a href="index.html">All Students</a>
+      <a href="add.html" class="btn-nav">+ Add Student</a>
+    </nav>
+  </header>
+
+  <main class="form-page">
+    <div id="loadingState" class="state-box">
+      <div class="spinner"></div>
+      <p>Loading student data...</p>
+    </div>
+
+    <div id="errorState" class="state-box hidden">
+      <div class="state-icon">⚠️</div>
+      <p id="errorMsg">Student not found.</p>
+      <a href="index.html" class="btn-primary">Go Back</a>
+    </div>
+
+    <div id="formCard" class="form-card hidden">
+      <div class="form-header">
+        <a href="index.html" class="back-link">← Back</a>
+        <h1>Edit <span>Student</span></h1>
+        <p id="editSubtitle">Update student details</p>
+      </div>
+
+      <form id="editForm" novalidate>
+        <input type="hidden" id="studentId" />
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstName">First Name *</label>
+            <input type="text" id="firstName" required />
+            <span class="err" id="firstNameErr"></span>
+          </div>
+          <div class="form-group">
+            <label for="lastName">Last Name *</label>
+            <input type="text" id="lastName" required />
+            <span class="err" id="lastNameErr"></span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email Address *</label>
+          <input type="email" id="email" required />
+          <span class="err" id="emailErr"></span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="course">Course / Department *</label>
+            <input type="text" id="course" required />
+            <span class="err" id="courseErr"></span>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="address">Address</label>
+          <textarea id="address" rows="2"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <a href="index.html" class="btn-secondary">Cancel</a>
+          <button type="submit" id="submitBtn" class="btn-primary">
+            <span id="submitText">Save Changes</span>
+            <span id="submitLoader" class="hidden">Saving...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const studentId = params.get('id');
+
+    async function loadStudent() {
+      if (!studentId) { showError('No student ID provided.'); return; }
+      try {
+        const student = await StudentAPI.getById(studentId);
+        populateForm(student);
+        document.getElementById('editSubtitle').textContent =
+          `Editing: ${student.name || student.firstName + ' ' + student.lastName}`;
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('formCard').classList.remove('hidden');
+      } catch(e) {
+        showError(e.message);
+      }
+    }
+
+    function populateForm(s) {
+      document.getElementById('studentId').value = s.id;
+      document.getElementById('firstName').value = s.firstName || (s.name || '').split(' ')[0] || '';
+      document.getElementById('lastName').value  = s.lastName  || (s.name || '').split(' ').slice(1).join(' ') || '';
+      document.getElementById('email').value     = s.email   || '';
+      document.getElementById('course').value    = s.course  || s.department || '';
+      document.getElementById('phone').value     = s.phone   || '';
+      document.getElementById('address').value   = s.address || '';
+    }
+
+    function showError(msg) {
+      document.getElementById('errorMsg').textContent = msg;
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('errorState').classList.remove('hidden');
+    }
+
+    document.getElementById('editForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      if (!validateForm()) return;
+      setLoading(true);
+
+      const data = {
+        id: studentId,
+        firstName: val('firstName'),
+        lastName: val('lastName'),
+        name: val('firstName') + ' ' + val('lastName'),
+        email: val('email'),
+        course: val('course'),
+        phone: val('phone'),
+        address: val('address')
+      };
+
+      try {
+        await StudentAPI.update(studentId, data);
+        showToast('Student updated successfully!', 'success');
+        setTimeout(() => window.location.href = 'index.html', 1200);
+      } catch(e) {
+        showToast('Error: ' + e.message, 'error');
+        setLoading(false);
+      }
+    });
+
+    function val(id) { return document.getElementById(id).value.trim(); }
+
+    function validateForm() {
+      let valid = true;
+      [
+        { id: 'firstName', msg: 'First name is required' },
+        { id: 'lastName',  msg: 'Last name is required' },
+        { id: 'email',     msg: 'Valid email is required' },
+        { id: 'course',    msg: 'Course is required' },
+      ].forEach(f => {
+        const el = document.getElementById(f.id);
+        const err = document.getElementById(f.id + 'Err');
+        if (!el.value.trim() || (f.id === 'email' && !el.value.includes('@'))) {
+          err.textContent = f.msg; el.classList.add('invalid'); valid = false;
+        } else {
+          err.textContent = ''; el.classList.remove('invalid');
+        }
+      });
+      return valid;
+    }
+
+    function setLoading(on) {
+      document.getElementById('submitBtn').disabled = on;
+      document.getElementById('submitText').classList.toggle('hidden', on);
+      document.getElementById('submitLoader').classList.toggle('hidden', !on);
+    }
+
+    document.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        inp.classList.remove('invalid');
+        const err = document.getElementById(inp.id + 'Err');
+        if (err) err.textContent = '';
+      });
+    });
+
+    loadStudent();
+  </script>
+</body>
+</html>

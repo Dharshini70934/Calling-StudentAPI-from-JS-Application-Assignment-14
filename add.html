@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Add Student | StudentAPI</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+  <div class="bg-blobs">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+  </div>
+
+  <header>
+    <div class="logo">🎓 StudentAPI</div>
+    <nav>
+      <a href="index.html">All Students</a>
+      <a href="add.html" class="active btn-nav">+ Add Student</a>
+    </nav>
+  </header>
+
+  <main class="form-page">
+    <div class="form-card">
+      <div class="form-header">
+        <a href="index.html" class="back-link">← Back</a>
+        <h1>Add <span>New Student</span></h1>
+        <p>Fill in the details to register a student</p>
+      </div>
+
+      <form id="addForm" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstName">First Name *</label>
+            <input type="text" id="firstName" placeholder="e.g. Priya" required />
+            <span class="err" id="firstNameErr"></span>
+          </div>
+          <div class="form-group">
+            <label for="lastName">Last Name *</label>
+            <input type="text" id="lastName" placeholder="e.g. Sharma" required />
+            <span class="err" id="lastNameErr"></span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email Address *</label>
+          <input type="email" id="email" placeholder="e.g. priya@college.edu" required />
+          <span class="err" id="emailErr"></span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="course">Course / Department *</label>
+            <input type="text" id="course" placeholder="e.g. B.Tech CSE" required />
+            <span class="err" id="courseErr"></span>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" placeholder="e.g. 9876543210" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="address">Address</label>
+          <textarea id="address" placeholder="e.g. 12 Gandhi Nagar, Chennai" rows="2"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <a href="index.html" class="btn-secondary">Cancel</a>
+          <button type="submit" id="submitBtn" class="btn-primary">
+            <span id="submitText">Add Student</span>
+            <span id="submitLoader" class="hidden">Adding...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    document.getElementById('addForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      if (!validateForm()) return;
+      setLoading(true);
+
+      const data = {
+        firstName: val('firstName'),
+        lastName: val('lastName'),
+        name: val('firstName') + ' ' + val('lastName'),
+        email: val('email'),
+        course: val('course'),
+        phone: val('phone'),
+        address: val('address')
+      };
+
+      try {
+        await StudentAPI.create(data);
+        showToast('Student added successfully!', 'success');
+        setTimeout(() => window.location.href = 'index.html', 1200);
+      } catch(e) {
+        showToast('Error: ' + e.message, 'error');
+        setLoading(false);
+      }
+    });
+
+    function val(id) { return document.getElementById(id).value.trim(); }
+
+    function validateForm() {
+      let valid = true;
+      [
+        { id: 'firstName', msg: 'First name is required' },
+        { id: 'lastName',  msg: 'Last name is required' },
+        { id: 'email',     msg: 'Valid email is required' },
+        { id: 'course',    msg: 'Course is required' },
+      ].forEach(f => {
+        const el = document.getElementById(f.id);
+        const err = document.getElementById(f.id + 'Err');
+        if (!el.value.trim() || (f.id === 'email' && !el.value.includes('@'))) {
+          err.textContent = f.msg; el.classList.add('invalid'); valid = false;
+        } else {
+          err.textContent = ''; el.classList.remove('invalid');
+        }
+      });
+      return valid;
+    }
+
+    function setLoading(on) {
+      document.getElementById('submitBtn').disabled = on;
+      document.getElementById('submitText').classList.toggle('hidden', on);
+      document.getElementById('submitLoader').classList.toggle('hidden', !on);
+    }
+
+    document.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        inp.classList.remove('invalid');
+        const err = document.getElementById(inp.id + 'Err');
+        if (err) err.textContent = '';
+      });
+    });
+  </script>
+</body>
+</html>
